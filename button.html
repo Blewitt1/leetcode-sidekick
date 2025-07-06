@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 12px;
+      background-color: white;
+    }
+    #explanation {
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>🧠 Problem Explainer</h2>
+  <button id="explain-btn">Explain this problem</button>
+  <div id="explanation">Click the button to get a simple explanation.</div>
+
+  <script>
+    document.getElementById('explain-btn').addEventListener('click', async () => {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const el = document.querySelector('[data-track-load="description_content"]');
+          return el ? el.innerText : 'Could not find problem description.';
+        }
+      }, async (results) => {
+        const problemText = results?.[0]?.result;
+        const responseDiv = document.getElementById('explanation');
+        responseDiv.innerText = 'Asking ChatGPT...';
+
+        const explanation = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer YOUR_API_KEY` // ← Replace with your key
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              { role: 'system', content: 'Explain this LeetCode problem in simple terms.' },
+              { role: 'user', content: problemText }
+            ],
+            max_tokens: 500
+          })
+        }).then(res => res.json());
+
+        const result = explanation.choices?.[0]?.message?.content || 'No reply from ChatGPT.';
+        responseDiv.innerText = result;
+      });
+    });
+  </script>
+</body>
+</html>
